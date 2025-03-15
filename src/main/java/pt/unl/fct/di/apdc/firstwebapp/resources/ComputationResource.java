@@ -14,9 +14,12 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.CookieParam;
+
+import jakarta.ws.rs.core.Cookie;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-
+import jakarta.ws.rs.core.Response.Status;
 
 import com.google.cloud.tasks.v2.*;
 import com.google.gson.Gson;
@@ -48,9 +51,13 @@ public class ComputationResource {
 	
 	@GET
 	@Path("/time")
-	public Response getCurrentTime() {
+	public Response getCurrentTime(@CookieParam("session::apdc") Cookie cookie) {
 
 		LOG.fine("Replying to date request.");
+		if(!LoginResource.checkPermissions(cookie, LoginResource.ADMIN)) {
+			return Response.status(Status.FORBIDDEN).entity("Incorrect username or password.").build();
+		}
+		
 		return Response.ok().entity(g.toJson(fmt.format(new Date()))).build();
 	}
 	
