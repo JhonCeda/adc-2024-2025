@@ -6,9 +6,11 @@ import org.apache.commons.codec.digest.DigestUtils;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreException;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.Transaction;
 import com.google.gson.Gson;
 
 import jakarta.ws.rs.Consumes;
@@ -78,4 +80,45 @@ public class RegisterResource {
 		
 		return Response.ok().build();
 	}
+	
+	@POST
+	@Path("/v3")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response registerUserV3(RegisterData data) {
+		LOG.fine("Attempt to register user: " + data.username);
+
+		if (!data.validRegistration()) {
+			return Response.status(Status.BAD_REQUEST).entity("Missing or wrong parameter.").build();
+		}
+
+		Transaction txn = datastore.newTransaction();
+		try {
+			Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
+			Entity user = txn.get(userKey);
+			
+			// If the entity does not exist null is returned...
+			if (user != null) {
+				txn.rollback();
+				return Response.status(Status.CONFLICT).entity("User already exists.").build();
+			} else {
+				 // ... otherwise
+				user = Entity.newBuilder(userKey).set("user_name", data.name)
+						.set("user_pwd", DigestUtils.sha512Hex(data.password)).set("user_email", data.email)
+						.set("user_creation_time", Timestamp.now()).build();
+				// get() followed by put() inside a transaction is ok...
+				txn.put(user);
+				txn.commit();
+				LOG.info("User registered " + data.username);
+				return Response.ok().build();
+			}
+		}
+		catch (DatastoreException e) {
+			return Response.status(Status.INTERNAL_SERVER_ERROR).entity(e.toString()).build();
+		} finally {
+			if (txn.isActive()) {
+				txn.rollback();
+			}
+		}
+	}	
+
 }
