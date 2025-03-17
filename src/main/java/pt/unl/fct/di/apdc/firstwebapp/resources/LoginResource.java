@@ -30,6 +30,14 @@ import pt.unl.fct.di.apdc.firstwebapp.util.LoginData;
 @Produces(MediaType.APPLICATION_JSON + ";charset=utf-8")
 public class LoginResource {
 
+	private static final String MESSAGE_INVALID_CREDENTIALS = "Incorrect username or password.";
+
+	private static final String LOG_MESSAGE_LOGIN_ATTEMP = "Login attempt by user: ";
+	private static final String LOG_MESSAGE_LOGIN_SUCCESSFUL = "Login successful by user: ";
+	private static final String LOG_MESSAGE_WRONG_PASSWORD = "Wrong password for: ";
+	private static final String LOG_MESSAGE_UNKNOW_USER = "Failed login attempt for username: ";
+	
+	private static final String USER_PWD = "user_pwd";
 	
 	private static final Logger LOG = Logger.getLogger(LoginResource.class.getName());
 	private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
@@ -45,13 +53,15 @@ public class LoginResource {
 	@Path("/")
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response doLogin(LoginData data) {
-		LOG.fine("Login attempt by user: " + data.username);
+		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
 		
 		if(data.username.equals("user") && data.password.equals("password")) {
 			AuthToken at = new AuthToken(data.username);
 			return Response.ok(g.toJson(at)).build();
 		}
-		return Response.status(Status.FORBIDDEN).entity("Incorrect username or password.").build();
+		return Response.status(Status.FORBIDDEN)
+				.entity(MESSAGE_INVALID_CREDENTIALS)
+				.build();
 	}
 	
 	@GET
@@ -68,56 +78,66 @@ public class LoginResource {
 	@POST
 	@Path("/v1")
 	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response doLoginV1(LoginData data) {
-		LOG.fine("Attempt to login user: " + data.username);
+		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
 		
 		Key userKey = userKeyFactory.newKey(data.username);
 		
 		Entity user = datastore.get(userKey);
 		if( user != null ) {
-			String hashedPWD = (String) user.getString("user_pwd");
+			String hashedPWD = (String) user.getString(USER_PWD);
 			if( hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
-				LOG.info("User '" + data.username + "' logged in successfully.");
+				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
 				AuthToken token = new AuthToken(data.username);
 				return Response.ok(g.toJson(token)).build();
 			} else {
-				LOG.warning("Wrong password for: " + data.username);
-				return Response.status(Status.FORBIDDEN).build();
+				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
+				return Response.status(Status.FORBIDDEN)
+						.entity(MESSAGE_INVALID_CREDENTIALS)
+						.build();
 			}
 		} else {
-			LOG.warning("Failed login attempt for username: " + data.username);
-			return Response.status(Status.FORBIDDEN).build();
+			LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.username);
+			return Response.status(Status.FORBIDDEN)
+					.entity(MESSAGE_INVALID_CREDENTIALS)
+					.build();
 		}
 	}
 	
 	@POST
 	@Path("/v1a")
 	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
 	public Response doLoginV1a(LoginData data) {
-		LOG.fine("Attempt to login user: " + data.username);
+		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
 		
 		Key userKey = userKeyFactory.newKey(data.username);
 		
 		Entity user = datastore.get(userKey);
 		if( user != null ) {
-			String hashedPWD = (String) user.getString("user_pwd");
+			String hashedPWD = (String) user.getString(USER_PWD);
 			if( hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
 				user = Entity.newBuilder(user)
 						.set("user_login_time", Timestamp.now())
 						.build();
 				datastore.update(user);
-				LOG.info("User '" + data.username + "' logged in successfully.");
+				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
 				AuthToken token = new AuthToken(data.username);
 				return Response.ok(g.toJson(token)).build();
 			}
 			else {
-				LOG.warning("Wrong password for: " + data.username);
-				return Response.status(Status.FORBIDDEN).build();
+				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
+				return Response.status(Status.FORBIDDEN)
+						.entity(MESSAGE_INVALID_CREDENTIALS)
+						.build();
 			}
 		}
 		else {
-			LOG.warning("Failed login attempt for username: " + data.username);
-			return Response.status(Status.FORBIDDEN).build();
+			LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.username);
+			return Response.status(Status.FORBIDDEN)
+					.entity(MESSAGE_INVALID_CREDENTIALS)
+					.build();
 		}
 	}
 	
@@ -126,13 +146,13 @@ public class LoginResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response doLoginV1b(LoginData data) {
-		LOG.fine("Attempt to login user: " + data.username);
+		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
 		
 		Key userKey = userKeyFactory.newKey(data.username);
 		
 		Entity user = datastore.get(userKey);
 		if( user != null ) {
-			String hashedPWD = user.getString("user_pwd");
+			String hashedPWD = user.getString(USER_PWD);
 			if( hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
 				KeyFactory logKeyFactory = datastore.newKeyFactory()
 						.addAncestor(PathElement.of("User", data.username))
@@ -142,18 +162,22 @@ public class LoginResource {
 						.set("user_login_time", Timestamp.now())
 						.build();
 				datastore.put(userLog);
-				LOG.info("User '" + data.username + "' logged in successfuly.");
+				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
 				AuthToken token = new AuthToken(data.username);
 				return Response.ok(g.toJson(token)).build();
 			}
 			else {
-				LOG.warning("Wrong password for: " + data.username);
-				return Response.status(Status.FORBIDDEN).build();
+				LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
+				return Response.status(Status.FORBIDDEN)
+						.entity(MESSAGE_INVALID_CREDENTIALS)
+						.build();
 			}
 		}
 		else {
-			LOG.warning("Failed login attempt for username: " + data.username);
-			return Response.status(Status.FORBIDDEN).build();
+			LOG.warning(LOG_MESSAGE_UNKNOW_USER + data.username);
+			return Response.status(Status.FORBIDDEN)
+					.entity(MESSAGE_INVALID_CREDENTIALS)
+					.build();
 		}
 	}
 }
