@@ -18,6 +18,7 @@ import com.google.cloud.datastore.PathElement;
 import com.google.cloud.datastore.Query;
 import com.google.cloud.datastore.QueryResults;
 import com.google.cloud.datastore.StructuredQuery.CompositeFilter;
+import com.google.cloud.datastore.StructuredQuery.OrderBy;
 import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
 import com.google.gson.Gson;
 
@@ -215,6 +216,8 @@ public class LoginResource {
 									PropertyFilter.ge(USER_LOGIN_TIME, yesterday)
 							)
 					)
+					.setOrderBy(OrderBy.desc(USER_LOGIN_TIME))
+					.setLimit(3)
 					.build();
 			QueryResults<Entity> logs = datastore.run(query);
 			
