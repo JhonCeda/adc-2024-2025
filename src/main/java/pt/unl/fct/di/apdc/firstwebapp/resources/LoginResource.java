@@ -4,6 +4,7 @@ import java.util.logging.Logger;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
+import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Entity;
@@ -83,6 +84,37 @@ public class LoginResource {
 				return Response.status(Status.FORBIDDEN).build();
 			}
 		} else {
+			LOG.warning("Failed login attempt for username: " + data.username);
+			return Response.status(Status.FORBIDDEN).build();
+		}
+	}
+	
+	@POST
+	@Path("/v1a")
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response doLoginV1a(LoginData data) {
+		LOG.fine("Attempt to login user: " + data.username);
+		
+		Key userKey = userKeyFactory.newKey(data.username);
+		
+		Entity user = datastore.get(userKey);
+		if( user != null ) {
+			String hashedPWD = (String) user.getString("user_pwd");
+			if( hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
+				user = Entity.newBuilder(user)
+						.set("user_login_time", Timestamp.now())
+						.build();
+				datastore.update(user);
+				LOG.info("User '" + data.username + "' logged in successfully.");
+				AuthToken token = new AuthToken(data.username);
+				return Response.ok(g.toJson(token)).build();
+			}
+			else {
+				LOG.warning("Wrong password for: " + data.username);
+				return Response.status(Status.FORBIDDEN).build();
+			}
+		}
+		else {
 			LOG.warning("Failed login attempt for username: " + data.username);
 			return Response.status(Status.FORBIDDEN).build();
 		}
