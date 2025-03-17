@@ -1,5 +1,9 @@
 package pt.unl.fct.di.apdc.firstwebapp.resources;
 
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
 import java.util.logging.Logger;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -11,6 +15,10 @@ import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.KeyFactory;
 import com.google.cloud.datastore.PathElement;
+import com.google.cloud.datastore.Query;
+import com.google.cloud.datastore.QueryResults;
+import com.google.cloud.datastore.StructuredQuery.CompositeFilter;
+import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
 import com.google.gson.Gson;
 
 import jakarta.ws.rs.Consumes;
@@ -38,6 +46,7 @@ public class LoginResource {
 	private static final String LOG_MESSAGE_UNKNOW_USER = "Failed login attempt for username: ";
 	
 	private static final String USER_PWD = "user_pwd";
+	private static final String USER_LOGIN_TIME = "user_login_time";
 	
 	private static final Logger LOG = Logger.getLogger(LoginResource.class.getName());
 	private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
@@ -179,5 +188,45 @@ public class LoginResource {
 					.entity(MESSAGE_INVALID_CREDENTIALS)
 					.build();
 		}
+	}
+	
+	@POST
+	@Path("/user")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response getLatestLogins(LoginData data) {
+		
+		Key userKey = userKeyFactory.newKey(data.username);
+		
+		Entity user = datastore.get(userKey);
+		if( user != null && user.getString(USER_PWD).equals(DigestUtils.sha512Hex(data.password))) {
+			
+			// Get the date of yesterday
+			Calendar cal = Calendar.getInstance();
+			cal.add(Calendar.DATE, -1);
+			Timestamp yesterday = Timestamp.of(cal.getTime());
+			
+			Query<Entity> query = Query.newEntityQueryBuilder()
+					.setKind("UserLog")
+					.setFilter(
+							CompositeFilter.and(
+									PropertyFilter.hasAncestor(
+											datastore.newKeyFactory().setKind("User").newKey(data.username)),
+									PropertyFilter.ge(USER_LOGIN_TIME, yesterday)
+							)
+					)
+					.build();
+			QueryResults<Entity> logs = datastore.run(query);
+			
+			List<Date> loginDates = new ArrayList<Date>();
+			logs.forEachRemaining(userlog -> {
+				loginDates.add(userlog.getTimestamp(USER_LOGIN_TIME).toDate());
+			});
+			
+			return Response.ok(g.toJson(loginDates)).build();
+		}
+		return Response.status(Status.FORBIDDEN).
+				entity(MESSAGE_INVALID_CREDENTIALS)
+				.build();
 	}
 }
