@@ -10,6 +10,7 @@ import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.KeyFactory;
+import com.google.cloud.datastore.PathElement;
 import com.google.gson.Gson;
 
 import jakarta.ws.rs.Consumes;
@@ -106,6 +107,42 @@ public class LoginResource {
 						.build();
 				datastore.update(user);
 				LOG.info("User '" + data.username + "' logged in successfully.");
+				AuthToken token = new AuthToken(data.username);
+				return Response.ok(g.toJson(token)).build();
+			}
+			else {
+				LOG.warning("Wrong password for: " + data.username);
+				return Response.status(Status.FORBIDDEN).build();
+			}
+		}
+		else {
+			LOG.warning("Failed login attempt for username: " + data.username);
+			return Response.status(Status.FORBIDDEN).build();
+		}
+	}
+	
+	@POST
+	@Path("/v1b")
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response doLoginV1b(LoginData data) {
+		LOG.fine("Attempt to login user: " + data.username);
+		
+		Key userKey = userKeyFactory.newKey(data.username);
+		
+		Entity user = datastore.get(userKey);
+		if( user != null ) {
+			String hashedPWD = user.getString("user_pwd");
+			if( hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
+				KeyFactory logKeyFactory = datastore.newKeyFactory()
+						.addAncestor(PathElement.of("User", data.username))
+						.setKind("UserLog");
+				Key logKey = datastore.allocateId(logKeyFactory.newKey());
+				Entity userLog = Entity.newBuilder(logKey)
+						.set("user_login_time", Timestamp.now())
+						.build();
+				datastore.put(userLog);
+				LOG.info("User '" + data.username + "' logged in successfuly.");
 				AuthToken token = new AuthToken(data.username);
 				return Response.ok(g.toJson(token)).build();
 			}
