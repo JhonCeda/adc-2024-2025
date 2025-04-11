@@ -20,7 +20,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
-import pt.unl.fct.di.apdc.firstwebapp.util.LoginData;
 import pt.unl.fct.di.apdc.firstwebapp.util.RegisterData;
 
 @Path("/register")
@@ -34,53 +33,7 @@ public class RegisterResource {
 
 	public RegisterResource() {}	// Default constructor, nothing to do
 	
-	@POST
-	@Path("/v1")
-	@Consumes(MediaType.APPLICATION_JSON)
-	public Response registerUserV1(LoginData data) {
-		LOG.fine("Attempt to register user: " + data.username);
 	
-		Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
-		Entity user = Entity.newBuilder(userKey)
-						.set("user_pwd", DigestUtils.sha512Hex(data.password))
-						.set("user_creation_time", Timestamp.now())
-						.build();
-		datastore.put(user);
-		LOG.info("User registered " + data.username);
-		return Response.ok().entity(g.toJson(true)).build();
-	}
-	
-	@POST
-	@Path("/v2")
-	@Consumes(MediaType.APPLICATION_JSON)
-	public Response registerUserV2(RegisterData data) {
-		LOG.fine("Attempt to register user: " + data.username);
-
-		if(!data.validRegistration())
-			return Response.status(Status.BAD_REQUEST).entity("Missing or wrong parameter.").build();
-					
-		Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
-		Entity user = datastore.get(userKey);
-		
-		if(user != null)
-			return Response.status(Status.BAD_REQUEST).entity("User already exists.").build();
-		
-		user = Entity.newBuilder(userKey)
-				.set("user_name", data.name)
-				.set("user_pwd", DigestUtils.sha512Hex(data.password))
-				.set("user_email", data.email)
-				.set("user_creation_time", Timestamp.now())
-				.build();
-
-		// Concurrency problem...
-		// When we reach here, another client might have put() an entity with the same key...
-		
-		datastore.put(user);
-		LOG.info("User registered " + data.username);
-		
-		
-		return Response.ok().build();
-	}
 	
 	@POST
 	@Path("/v3")
@@ -122,8 +75,9 @@ public class RegisterResource {
 		}
 	}	
 
+	// Version used for individual grading
 	@POST
-	@Path("/v4")
+	@Path("/register")
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response registerUserV4(RegisterData data) {
 		LOG.fine("Attempt to register user: " + data.username);
@@ -136,9 +90,11 @@ public class RegisterResource {
 			Key userKey = datastore.newKeyFactory().setKind("User").newKey(data.username);
 			
 			Entity user = Entity.newBuilder(userKey)
-					.set("user_name", data.name)
-					.set("user_pwd", DigestUtils.sha512Hex(data.password))
 					.set("user_email", data.email)
+					.set("user_name", data.name)
+					.set("user_phone", data.phone)
+					.set("user_pwd", DigestUtils.sha512Hex(data.password))
+					.set("user_account_type", data.accountType)
 					.set("user_creation_time", Timestamp.now())
 					.build();
 

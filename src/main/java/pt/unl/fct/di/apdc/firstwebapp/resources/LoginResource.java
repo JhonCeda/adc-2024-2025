@@ -193,7 +193,7 @@ public class LoginResource {
 	}
 
 	@POST
-	@Path("/v2")
+	@Path("/login")
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response doLoginV2(LoginData data,
