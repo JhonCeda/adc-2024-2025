@@ -17,6 +17,7 @@
 	<error-page>
 		<error-code>500</error-code>
 		<location>/error/500.html</location>
+<<<<<<< HEAD
 	</error-page>
 	
 	<error-page>
@@ -29,6 +30,9 @@
 		<location>/error/404.html</location>
 	</error-page>
 	
+=======
+	</error-page>	
+>>>>>>> op1
 
 	<servlet>
 		<servlet-name>MainServices</servlet-name>
@@ -64,5 +68,18 @@
 		<servlet-name>MainServices</servlet-name>
 		<url-pattern>/rest/*</url-pattern>
 	</servlet-mapping>
+<<<<<<< HEAD
+	
+	<security-constraint>
+		<web-resource-collection>
+			<web-resource-name>Restricted Area</web-resource-name>
+			<url-pattern>/secret/*</url-pattern>
+		</web-resource-collection>
+		<auth-constraint>
+			<role-name>admin</role-name>
+		</auth-constraint>
+	</security-constraint>
+=======
+>>>>>>> op1
 
 </web-app>
